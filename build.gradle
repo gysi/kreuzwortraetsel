@@ -1,0 +1,64 @@
+//plugins {
+//    id 'java'
+//}
+//apply plugin: 'java'
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'de.gregord.kreuzwortraetsel.Main'
+}
+
+group 'de.gregord.kreuzwortraetsel'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.11.1'
+    implementation 'ch.qos.logback:logback-core:1.2.3'
+    implementation 'ch.qos.logback:logback-classic:1.2.3'
+    testImplementation 'org.slf4j:slf4j-api:1.7.30'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+}
+
+compileJava {
+    options.release = 16
+}
+
+test {
+    useJUnitPlatform()
+}
+
+//jar {
+//    from sourceSets.main.output
+//
+//    dependsOn configurations.runtimeClasspath
+//    from {
+//        configurations.runtimeClasspath.findAll { it.name.endsWith('jar') }.collect { zipTree(it) }
+//    }
+//
+//    sourceSets {
+//        "src/main/java"
+//    }
+//
+//    manifest {
+//        attributes("Implementation-Title": "Gradle",
+//                "Implementation-Version": archiveVersion,
+//                "Main-Class": "de.gregord.kreuzwortraetsel.Main")
+//    }
+//
+//    exclude {
+////        exclude 'META-INF/DEPENDENCIES'
+//        exclude 'META-INF/NOTICE'
+//        exclude 'META-INF/LICENSE'
+//        exclude 'META-INF/LICENSE.txt'
+//        exclude 'META-INF/NOTICE.txt'
+//    }
+//}
+
