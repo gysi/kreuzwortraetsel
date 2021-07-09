@@ -207,7 +207,7 @@ public class Main {
         public void run() {
             Solver solver = new Solver(width, height, wordList, optionalWordList, blockedArea);
             for (int i = 0; i < settings.getIterations(); i++) {
-                SolvedPuzzleInfo solvedPuzzleInfo = solver.solve();
+                SolvedPuzzleInfo solvedPuzzleInfo = solver.solve(puzzleResults.getMissingWordsCount().get());
                 PuzzleResult puzzleResult = new PuzzleResult(
                         solvedPuzzleInfo.getField().toString(),
                         solvedPuzzleInfo.getMissingWordsList(),

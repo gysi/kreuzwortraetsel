@@ -60,15 +60,17 @@ public class Solver {
         shuffler = new Shuffler(new ArrayList<>(words));
     }
 
-    public SolvedPuzzleInfo solve() {
+    public SolvedPuzzleInfo solve(int missingWordsLimit) {
         LOG.debug("starting recursive solve");
         wordsPlaced = new ArrayList<>();
         field = new Field(width, height, blockedArea);
         maxIteration = 0;
         List<String> wordsLeftInLastSolve = shuffler.shuffle();
-        List<String> optionalWordsLeftInLastSolve = new ArrayList<>(this.optionalWordList);
         recursiveSolve(wordsLeftInLastSolve, 0);
-        recursiveSolve(optionalWordsLeftInLastSolve, maxIteration + 1);
+        List<String> optionalWordsLeftInLastSolve = new ArrayList<>(this.optionalWordList);
+        if(wordsLeftInLastSolve.size() <= missingWordsLimit){
+            recursiveSolve(optionalWordsLeftInLastSolve, maxIteration + 1);
+        }
         return new SolvedPuzzleInfo(field, maxIteration, wordsLeftInLastSolve, optionalWordsLeftInLastSolve, wordsPlaced,
                 shuffler.getFirstWordsToBeUsed(), shuffler.getLastWordsToBeUsed());
     }
