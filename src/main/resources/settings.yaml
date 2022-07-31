@@ -1,4 +1,4 @@
-iterations: 30000
+iterations: 300000
 threadCount: 4
 fieldWidth: 21
 fieldHeight: 27
@@ -19,11 +19,23 @@ optionalWordList:
   - Ronde-Plate
   - Heidschnucken
   - Kutter
+  - Tee
+  - FKK
+  - LER
+  - Moin
+  - Jod
+  - Flut
+  - Ebbe
+  - DLRG
+  - UV
+  - Hai
+  - Ems
+  - Moi
+  - Leuchtturm
 wordList:
   - Wellenbrecher
   - Promenade
   - Strand
-  - Leuchtturm
   - Sand
   - Hooge-Hörn
   - Meer

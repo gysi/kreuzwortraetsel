@@ -3,11 +3,11 @@ package de.gregord.kreuzwortraetsel;
 import java.util.List;
 
 public class SolvedPuzzleInfo {
-    private final List<PlacedWordInfo> placedWordInfoList;
     private final int iterations;
     private final Field field;
     private final List<String> missingWordsList;
     private final List<String> missingOptionalWordsList;
+    private final List<PlacedWordInfo> placedWordInfoList;
     private final List<String> firstWordToBeUsed;
     private final List<String> lastWordToBeUsed;
 

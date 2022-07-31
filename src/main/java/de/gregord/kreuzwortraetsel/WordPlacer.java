@@ -1,10 +1,6 @@
 package de.gregord.kreuzwortraetsel;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +8,7 @@ import org.slf4j.LoggerFactory;
 public class WordPlacer {
     public static final Logger LOG = LoggerFactory.getLogger(WordPlacer.class);
     private final Map<Integer, List<StartingPoint>> startingPointMap;
+    private final Random random = new Random();
 
     private static record StartingPoint(int posx, int posy, Orientation orientation) { }
 
@@ -59,8 +56,10 @@ public class WordPlacer {
         if (field.isFieldEmpty()) {
             int wordLength = word.length();
             List<StartingPoint> startingPoints = startingPointMap.get(wordLength);
-            Collections.shuffle(startingPoints);
-            StartingPoint startingPoint = startingPoints.get(0);
+            if(startingPoints == null){
+                throw new RuntimeException("No space found for initial word");
+            }
+            StartingPoint startingPoint = startingPoints.get(random.nextInt(startingPoints.size()));
             List<Letter> letters = field.placeWord(word, startingPoint.posx, startingPoint.posy, startingPoint.orientation);
             return new PlacedWordInfo(word, startingPoint.posx, startingPoint.posy, '_', "none", letters);
         } else {
@@ -68,10 +67,7 @@ public class WordPlacer {
         }
     }
 
-    public static record PlaceWordResult(boolean couldBePlaced, String word, PlacedWordInfo placedWordInfo) {
-    }
-
-    public PlaceWordResult placeWordFromList(List<String> words, Field field) {
+    public PlacedWordInfo placeWordFromList(List<String> words, Field field) {
         for (String word : words) {
             for (int i = 0; i < word.length(); i++) {
                 for (int row = 0; row < field.height; row++) {
@@ -81,26 +77,62 @@ public class WordPlacer {
                             if (letter.orientation == Orientation.BOTH) {
                                 continue;
                             }
-                            if (!letter.isHorizontal()
+                            if (letter.isVertical()
                                     && doesWordFit(letter, word, i, Orientation.HORIZONTAL)) {
                                 LOG.trace("placeword " + (col - i) + " " + row + " " + Orientation.HORIZONTAL);
                                 List<Letter> letters = field.placeWord(word, col - i, row, Orientation.HORIZONTAL);
                                 words.remove(word);
-                                return new PlaceWordResult(true, word, new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters));
+                                return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
                             }
-                            if (!letter.isVertical()
+                            if (letter.isHorizontal()
                                     && doesWordFit(letter, word, i, Orientation.VERTICAL)) {
                                 LOG.trace("placeword " + col + " " + (row - i) + " " + Orientation.HORIZONTAL);
                                 List<Letter> letters = field.placeWord(word, col, row - i, Orientation.VERTICAL);
                                 words.remove(word);
-                                return new PlaceWordResult(true, word, new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters));
+                                return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
                             }
                         }
                     }
                 }
             }
         }
-        return new PlaceWordResult(false, null, null);
+        return null;
+    }
+
+    public PlacedWordInfo placeWordFromListV2(List<String> words, Field field, HashMap<Character, List<Position>> letterPositionMap) {
+        for (String word : words) {
+            for (int i = 0; i < word.length(); i++) {
+                List<Position> positions = letterPositionMap.get(word.charAt(i));
+                if(positions == null){
+                    continue;
+                }
+                for (Position position : positions) {
+                    final int row = position.y();
+                    final int col = position.x();
+                    Letter letter = field.getLetter(row, col);
+                    if (letter.getChar() == word.charAt(i)) { // Matching char found
+                        if (letter.orientation == Orientation.BOTH) {
+                            continue;
+                        }
+                        if (letter.isVertical()
+                                && doesWordFit(letter, word, i, Orientation.HORIZONTAL)) {
+                            LOG.trace("placeword " + (col - i) + " " + row + " " + Orientation.HORIZONTAL);
+                            List<Letter> letters = field.placeWord(word, col - i, row, Orientation.HORIZONTAL);
+                            words.remove(word);
+                            return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                        }
+                        if (letter.isHorizontal()
+                                && doesWordFit(letter, word, i, Orientation.VERTICAL)) {
+                            LOG.trace("placeword " + col + " " + (row - i) + " " + Orientation.HORIZONTAL);
+                            List<Letter> letters = field.placeWord(word, col, row - i, Orientation.VERTICAL);
+                            words.remove(word);
+                            return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private boolean doesWordFit(Letter letter, String word, int wordPos, Orientation orientation) {
@@ -210,7 +242,7 @@ public class WordPlacer {
         return true;
     }
 
-    private boolean hasPlaceForQuestionBlock(Letter target, Orientation orientation){
+    private boolean hasPlaceForQuestionBlock(final Letter target, final Orientation orientation){
         if(orientation == Orientation.HORIZONTAL){
             if(target.topLetter != Letter.NULL && target.topLetter.isEmpty){
                 return true;

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class Letter implements Cloneable {
+public class Letter {
     public boolean isFirst;
     public boolean isEmpty;
     public boolean isQuestionBlock;
@@ -48,24 +48,30 @@ public class Letter implements Cloneable {
         return this;
     }
 
-    public int getPossibleQuestionBlocksCount(){
-        int count = 0;
-        if(topLetter != NULL && topLetter.isNotEmpty()){
-            count++;
+    public void reset(){
+        if(this == NULL){
+            return;
         }
-        if(rightLetter != NULL && rightLetter.isNotEmpty()){
-            count++;
+        if(isEmpty){
+            return;
         }
-        if(bottomLetter != NULL && bottomLetter.isNotEmpty()){
-            count++;
-        }
-        if(leftLetter != NULL && leftLetter.isNotEmpty()){
-            count++;
-        }
-        return count;
+        this.orientation = Orientation.NONE;
+        this.word = null;
+        this.letter = '\u0000'; // null char
+        this.isFirst = false;
+        this.isEmpty = true;
+        this.initialOrientation = null;
+        this.isQuestionBlock = false;
+        firstQuestionBlockOfThisLetter = null;
     }
 
     public void resetToLastState(){
+        if(this == NULL){
+            return;
+        }
+        if(isEmpty){
+            return;
+        }
         if(orientation == Orientation.BOTH){
             // two words are using this letter!
             orientation = initialOrientation;
@@ -87,7 +93,6 @@ public class Letter implements Cloneable {
             if(firstQuestionBlockOfThisLetter != null){
                 firstQuestionBlockOfThisLetter.resetToLastState();
                 firstQuestionBlockOfThisLetter = null;
-                isFirst = false;
             }
         }
     }
@@ -185,10 +190,5 @@ public class Letter implements Cloneable {
             return '�';
         }
         return letter;
-    }
-
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        return super.clone();
     }
 }

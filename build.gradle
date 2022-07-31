@@ -1,7 +1,3 @@
-//plugins {
-//    id 'java'
-//}
-//apply plugin: 'java'
 plugins {
     id 'application'
 }
@@ -28,12 +24,35 @@ dependencies {
 }
 
 compileJava {
-    options.release = 16
+    options.release = 17
+}
+
+java {
+    toolchain {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 test {
     useJUnitPlatform()
 }
+
+//apply from: rootProject.file('gradle/jmh.gradle')
+
+//task jmh(type: JavaExec, description: 'Executing JMH benchmarks') {
+//    classpath = sourceSets.jmh.runtimeClasspath
+//    main = 'org.openjdk.jmh.Main'
+//
+//    def include = project.properties.get('include', '');
+//    def format = project.properties.get('format', 'json');
+//    def resultFile = file("build/reports/jmh/result.${format}")
+//    resultFile.parentFile.mkdirs()
+//
+//    args include
+//    args '-rf', format
+//    args '-rff', resultFile
+//}
 
 //jar {
 //    from sourceSets.main.output

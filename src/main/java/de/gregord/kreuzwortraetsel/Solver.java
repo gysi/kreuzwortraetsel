@@ -1,9 +1,6 @@
 package de.gregord.kreuzwortraetsel;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,13 +11,21 @@ public class Solver {
     public static class Shuffler {
         private final List<String> firstWordsToBeUsed;
         private final List<String> lastWordsToBeUsed;
+        private final List<String> wordList;
 
         public Shuffler(List<String> wordList){
+            this.wordList = wordList;
             int wordCount = wordList.size();
             int lastWordsToBeUsedPercentage = (int)(wordCount * 0.3);
             wordList.sort(Comparator.comparingInt(String::length));
             this.lastWordsToBeUsed = wordList.subList(0, lastWordsToBeUsedPercentage);
             this.firstWordsToBeUsed = wordList.subList(lastWordsToBeUsedPercentage, wordList.size());
+        }
+
+        public List<String> allRandom(){
+            ArrayList<String> copy = new ArrayList<>(wordList);
+            Collections.shuffle(copy);
+            return copy;
         }
 
         public List<String> shuffle(){
@@ -50,6 +55,7 @@ public class Solver {
     private final BlockedArea blockedArea;
     private final Shuffler shuffler;
     private final List<String> optionalWordList;
+    private HashMap<Character, List<Position>> letterPositionMap = new HashMap<>();
 
     public Solver(int width, int height, List<String> words, List<String> optionalWordList, BlockedArea blockedArea) {
         this.wordPlacer = new WordPlacer(new Field(width, height, blockedArea));
@@ -63,16 +69,65 @@ public class Solver {
     public SolvedPuzzleInfo solve(int missingWordsLimit) {
         LOG.debug("starting recursive solve");
         wordsPlaced = new ArrayList<>();
-        field = new Field(width, height, blockedArea);
+        letterPositionMap = new HashMap<>();
+//        field = new Field(width, height, blockedArea);
+        if(field == null){
+            field = new Field(width, height, blockedArea);
+        }else {
+            field.resetField();
+        }
         maxIteration = 0;
-        List<String> wordsLeftInLastSolve = shuffler.shuffle();
-        recursiveSolve(wordsLeftInLastSolve, 0);
+//        List<String> wordsLeftInLastSolve = shuffler.shuffle();
+        List<String> wordsLeftInLastSolve = shuffler.allRandom();
+        iterativeSolve(wordsLeftInLastSolve, 0);
         List<String> optionalWordsLeftInLastSolve = new ArrayList<>(this.optionalWordList);
         if(wordsLeftInLastSolve.size() <= missingWordsLimit){
-            recursiveSolve(optionalWordsLeftInLastSolve, maxIteration + 1);
+            iterativeSolve(optionalWordsLeftInLastSolve, maxIteration + 1);
         }
         return new SolvedPuzzleInfo(field, maxIteration, wordsLeftInLastSolve, optionalWordsLeftInLastSolve, wordsPlaced,
                 shuffler.getFirstWordsToBeUsed(), shuffler.getLastWordsToBeUsed());
+    }
+
+    private void iterativeSolve(List<String> words, int iteration){
+        while(words.size() > 0) {
+            if (iteration == 0) {
+                if (wordsPlaced.size() == 1) {
+                    PlacedWordInfo remove = wordsPlaced.remove(0);
+                    words.add(remove.word());
+                    removeFromLetterPositionMap(remove);
+                    LOG.debug("first solve couldn't place word after: " + remove.word());
+                    for (Letter letter : remove.letters()) {
+                        letter.resetToLastState();
+                    }
+                }
+                String removedWord = words.remove(words.size() - 1);
+                PlacedWordInfo placedWordInfo = wordPlacer.placeInitialWord(removedWord, field);
+                wordsPlaced.add(placedWordInfo);
+                addToLetterPositionMap(placedWordInfo);
+            }
+//            PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromList(words, field);
+            PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromListV2(words, field, letterPositionMap);
+            if(placedWordInfo != null){
+                iteration++;
+                addToLetterPositionMap(placedWordInfo);
+                LOG.debug("A word was placed ("+placedWordInfo.word()+"), remaining:");
+                if(LOG.isTraceEnabled()){
+                    for (String word : words) {
+                        LOG.trace(word);
+                    }
+                }
+                wordsPlaced.add(placedWordInfo);
+                if(maxIteration < iteration){
+                    maxIteration = iteration;
+                }
+            }
+            if(placedWordInfo == null) {
+                LOG.trace("No word could be placed. iteration: " + iteration);
+                if(iteration > 0){
+                    return;
+                }
+            }
+        }
     }
 
     private void recursiveSolve(List<String> words, int iteration) {
@@ -84,12 +139,14 @@ public class Solver {
                 String removedWord = words.remove(words.size() - 1);
                 PlacedWordInfo placedWordInfo = wordPlacer.placeInitialWord(removedWord, field);
                 wordsPlaced.add(placedWordInfo);
+                addToLetterPositionMap(placedWordInfo);
                 recursiveSolve(words, iteration + 1);
                 if(maxIteration == iteration){
                     LOG.debug("first recursive solve couldn't place word after: " + removedWord);
                     tryanotherLocation = true;
                     words.add(removedWord);
                     wordsPlaced.remove(placedWordInfo);
+                    removeFromLetterPositionMap(placedWordInfo);
                     for (Letter letter : placedWordInfo.letters()) {
                         letter.resetToLastState();
                     }
@@ -97,15 +154,17 @@ public class Solver {
             }
             return;
         }
-        WordPlacer.PlaceWordResult placeWordResult = wordPlacer.placeWordFromList(words, field);
-        if(placeWordResult.couldBePlaced()){
-            LOG.debug("A word was placed ("+placeWordResult.word()+"), remaining:");
+//        PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromList(words, field);
+        PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromListV2(words, field, letterPositionMap);
+        if(placedWordInfo != null){
+            addToLetterPositionMap(placedWordInfo);
+            LOG.debug("A word was placed ("+placedWordInfo.word()+"), remaining:");
             if(LOG.isTraceEnabled()){
                 for (String word : words) {
                     LOG.trace(word);
                 }
             }
-            wordsPlaced.add(placeWordResult.placedWordInfo());
+            wordsPlaced.add(placedWordInfo);
             if(maxIteration < iteration){
                 maxIteration = iteration;
             }
@@ -114,9 +173,22 @@ public class Solver {
                 return;
             }
         }
-        if(!placeWordResult.couldBePlaced()) {
+        if(placedWordInfo == null) {
             LOG.trace("No word could be placed. iteration: " + iteration);
         }
         return;
+    }
+
+    private void addToLetterPositionMap(PlacedWordInfo placedWordInfo){
+        for (Letter letter : placedWordInfo.letters()) {
+            letterPositionMap.computeIfAbsent(letter.getChar(), character -> new ArrayList<>()).add(new Position(letter.posX, letter.posY));
+        }
+    }
+
+    private void removeFromLetterPositionMap(PlacedWordInfo placedWordInfo){
+        for (Letter letter : placedWordInfo.letters()) {
+            List<Position> positions = letterPositionMap.get(letter.getChar());
+            positions.remove(positions.size()-1);
+        }
     }
 }

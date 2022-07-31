@@ -2,11 +2,11 @@ package de.gregord.kreuzwortraetsel;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,7 @@ public class Main {
         System.out.println("optional words used: "
                 + (puzzleResults.getOptionalWordListSize() - puzzleResults.getMissingOptionalWordsCount().get())
                 + " of " + puzzleResults.getOptionalWordListSize());
-        for (PuzzleResult solvedPuzzle : puzzleResults.getSolvedPuzzles()) {
+        for (BestPuzzleResult solvedPuzzle : puzzleResults.getSolvedPuzzles()) {
             System.out.println(solvedPuzzle.solvedPuzzle());
             System.out.println("Missing Words: ");
             for (String missingWord : solvedPuzzle.missingWords()) {
@@ -84,13 +84,16 @@ public class Main {
 //        }
     }
 
-    public static record PuzzleResult(String solvedPuzzle, List<String> missingWords,
-                                      List<String> missingOptionalWords, int iterations) {}
+    public static record BestPuzzleResult(String solvedPuzzle, List<String> missingWords,
+                                          List<String> missingOptionalWords, int iterations) {}
+
+    public static record PuzzleResult(Field solvedPuzzle, List<String> missingWords,
+                                          List<String> missingOptionalWords, int iterations) {}
 
     public static class PuzzleResults {
         private final int wordListSize;
         private final int optionalWordListSize;
-        private List<PuzzleResult> solvedPuzzles = new ArrayList<>();
+        private List<BestPuzzleResult> solvedPuzzles = new ArrayList<>();
         private final AtomicInteger maxIterations = new AtomicInteger(0);
         private final AtomicInteger missingWordsCount;
         private final AtomicInteger missingOptionalWordsCount;
@@ -114,7 +117,13 @@ public class Main {
                 synchronized (lock){
                     if(isItTheSameSolution(puzzleResult)) {
                         if (solvedPuzzles.size() < 8) {
-                            solvedPuzzles.add(puzzleResult);
+                            solvedPuzzles.add(
+                                    new BestPuzzleResult(
+                                            puzzleResult.solvedPuzzle.toString(),
+                                            puzzleResult.missingWords,
+                                            puzzleResult.missingOptionalWords,
+                                            puzzleResult.iterations
+                            ));
                         }
                     }
                 }
@@ -129,7 +138,13 @@ public class Main {
             this.missingWordsCount.set(puzzleResult.missingWords().size());
             this.missingOptionalWordsCount.set(puzzleResult.missingOptionalWords.size());
             solvedPuzzles = new ArrayList<>();
-            solvedPuzzles.add(puzzleResult);
+            solvedPuzzles.add(
+                    new BestPuzzleResult(
+                        puzzleResult.solvedPuzzle.toString(),
+                        puzzleResult.missingWords,
+                        puzzleResult.missingOptionalWords,
+                        puzzleResult.iterations
+            ));
         }
 
         private boolean isItTheSameSolution(PuzzleResult puzzleResult){
@@ -153,7 +168,7 @@ public class Main {
             return maxIterations;
         }
 
-        public List<PuzzleResult> getSolvedPuzzles(){
+        public List<BestPuzzleResult> getSolvedPuzzles(){
             return this.solvedPuzzles;
         }
 
@@ -184,11 +199,24 @@ public class Main {
         private final BlockedArea blockedArea;
         private final Statistics statistics;
         private static final AtomicInteger solveCounter = new AtomicInteger();
+        private static Instant solveCountTimeMeasure = Instant.now();
+        private static int measures = 0;
+        public static double accumilatedTimeInSeconds = 0;
 
         public static void printSolveCount(){
             int i = solveCounter.incrementAndGet();
             if(i % 100000 == 0){
-                LOG.info(""+i);
+                String infoLog = ""+i;
+                Instant temp = PuzzleSolverRunnable.solveCountTimeMeasure;
+                solveCountTimeMeasure = Instant.now();
+                if(i >= 25000) {
+                    Duration between = Duration.between(temp, solveCountTimeMeasure);
+                    measures++;
+                    accumilatedTimeInSeconds += (between.toMillis() / 1000.);
+//                LOG.info(""+i + " " + between.getSeconds()+"s " + between.toNanosPart()/1000000 + "ms");
+                    infoLog += " " + between.toMillis() / 1000. + "s (Avg: " + accumilatedTimeInSeconds / measures + ")";
+                }
+                LOG.info(infoLog);
             }
         }
 
@@ -208,8 +236,11 @@ public class Main {
             Solver solver = new Solver(width, height, wordList, optionalWordList, blockedArea);
             for (int i = 0; i < settings.getIterations(); i++) {
                 SolvedPuzzleInfo solvedPuzzleInfo = solver.solve(puzzleResults.getMissingWordsCount().get());
+                // TODO just for benchmarking
+//                SolvedPuzzleInfo solvedPuzzleInfo = solver.solve(wordList.size());
+
                 PuzzleResult puzzleResult = new PuzzleResult(
-                        solvedPuzzleInfo.getField().toString(),
+                        solvedPuzzleInfo.getField(),
                         solvedPuzzleInfo.getMissingWordsList(),
                         solvedPuzzleInfo.getMissingOptionalWordsList(),
                         solvedPuzzleInfo.getIterations()
@@ -219,7 +250,7 @@ public class Main {
                     LOG.info("All words got fit!!!");
                     break;
                 }
-                statistics.addToStatistics(solvedPuzzleInfo);
+//                statistics.addToStatistics(solvedPuzzleInfo);
                 printSolveCount();
             }
         }

@@ -3,7 +3,7 @@ package de.gregord.kreuzwortraetsel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Field implements Cloneable{
+public class Field {
     private Letter[][] field;
     public final int width;
     public final int height;
@@ -15,7 +15,7 @@ public class Field implements Cloneable{
         for (int row = 0; row < field.length; row++) {
             for (int col = 0; col < field[0].length; col++) {
                 Letter letter;
-                if((row >= blockedArea.getPosx() && row <= blockedArea.getPosy()+ blockedArea.getHeight())
+                if((row >= blockedArea.getPosy() && row <= blockedArea.getPosy()+ blockedArea.getHeight())
                     && (col >= blockedArea.getPosx() && col <= blockedArea.getPosx()+blockedArea.getWidth())){
                     letter = Letter.NULL;
                 }else{
@@ -48,14 +48,8 @@ public class Field implements Cloneable{
     public List<Letter> placeWord(String word, int posX, int posY, Orientation orientation) {
         List<Letter> placedLetters = new ArrayList<>();
         for (int i = 0; i < word.length(); i++) {
-//            try {
             Letter set = field[posY][posX].set(i == 0, word.charAt(i), word, orientation);
             placedLetters.add(set);
-            //            }catch (RuntimeException e){
-//                print();
-//                System.out.println(word + " " + posX + " " + posY + " " + orientation);
-//                throw e;
-//            }
             if (orientation.equals(Orientation.HORIZONTAL)) {
                 posX++;
             } else {
@@ -92,23 +86,6 @@ public class Field implements Cloneable{
         return sb.toString();
     }
 
-    public void print() {
-        for (int row = 0; row < field.length; row++) {
-            for (int col = 0; col < field[0].length; col++) {
-                System.out.print(field[row][col].getChar() + " ");
-            }
-            System.out.println();
-        }
-    }
-
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
-    }
-
     public int getEmptyFieldCount(){
         int count = 0;
         for (int row = 0; row < field.length; row++) {
@@ -125,16 +102,11 @@ public class Field implements Cloneable{
         return this.field;
     }
 
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        Field clone = (Field) super.clone();
-        clone.field = new Letter[height][width];
-        for (int row = 0; row < height; row++) {
-            for (int col = 0; col < width; col++) {
-                clone.field[row][col] = (Letter) this.field[row][col].clone();
+    public void resetField(){
+        for (int row = 0; row < field.length; row++) {
+            for (int col = 0; col < field[0].length; col++) {
+                field[row][col].reset();
             }
         }
-        setAdjacentFieldsToLetters(clone.field);
-        return clone;
     }
 }
