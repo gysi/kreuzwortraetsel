@@ -9,17 +9,10 @@ public class Solver {
     public static final Logger LOG = LoggerFactory.getLogger(Solver.class);
 
     public static class Shuffler {
-        private final List<String> firstWordsToBeUsed;
-        private final List<String> lastWordsToBeUsed;
         private final List<String> wordList;
 
         public Shuffler(List<String> wordList){
             this.wordList = wordList;
-            int wordCount = wordList.size();
-            int lastWordsToBeUsedPercentage = (int)(wordCount * 0.3);
-            wordList.sort(Comparator.comparingInt(String::length));
-            this.lastWordsToBeUsed = wordList.subList(0, lastWordsToBeUsedPercentage);
-            this.firstWordsToBeUsed = wordList.subList(lastWordsToBeUsedPercentage, wordList.size());
         }
 
         public List<String> allRandom(){
@@ -28,21 +21,13 @@ public class Solver {
             return copy;
         }
 
-        public List<String> shuffle(){
-            Collections.shuffle(this.firstWordsToBeUsed);
-            Collections.shuffle(this.lastWordsToBeUsed);
-            List<String> shuffledList = new ArrayList<>();
-            shuffledList.addAll(this.lastWordsToBeUsed);
-            shuffledList.addAll(this.firstWordsToBeUsed);
+        public List<String> fastShuffle(){
+            RandomPermuteIterator r = new RandomPermuteIterator(wordList.size());
+            ArrayList<String> shuffledList = new ArrayList<>(wordList.size());
+            while (r.hasMoreElements()){
+                shuffledList.add(wordList.get(Math.toIntExact(r.nextElement())));
+            }
             return shuffledList;
-        }
-
-        public List<String> getFirstWordsToBeUsed() {
-            return firstWordsToBeUsed;
-        }
-
-        public List<String> getLastWordsToBeUsed() {
-            return lastWordsToBeUsed;
         }
     }
 
@@ -69,23 +54,20 @@ public class Solver {
     public SolvedPuzzleInfo solve(int missingWordsLimit) {
         LOG.debug("starting recursive solve");
         wordsPlaced = new ArrayList<>();
-        letterPositionMap = new HashMap<>();
-//        field = new Field(width, height, blockedArea);
+        letterPositionMap = new HashMap<>(50);
         if(field == null){
             field = new Field(width, height, blockedArea);
         }else {
             field.resetField();
         }
         maxIteration = 0;
-//        List<String> wordsLeftInLastSolve = shuffler.shuffle();
-        List<String> wordsLeftInLastSolve = shuffler.allRandom();
+        List<String> wordsLeftInLastSolve = shuffler.fastShuffle();
         iterativeSolve(wordsLeftInLastSolve, 0);
         List<String> optionalWordsLeftInLastSolve = new ArrayList<>(this.optionalWordList);
         if(wordsLeftInLastSolve.size() <= missingWordsLimit){
             iterativeSolve(optionalWordsLeftInLastSolve, maxIteration + 1);
         }
-        return new SolvedPuzzleInfo(field, maxIteration, wordsLeftInLastSolve, optionalWordsLeftInLastSolve, wordsPlaced,
-                shuffler.getFirstWordsToBeUsed(), shuffler.getLastWordsToBeUsed());
+        return new SolvedPuzzleInfo(field, maxIteration, wordsLeftInLastSolve, optionalWordsLeftInLastSolve, wordsPlaced);
     }
 
     private void iterativeSolve(List<String> words, int iteration){
@@ -106,7 +88,7 @@ public class Solver {
                 addToLetterPositionMap(placedWordInfo);
             }
 //            PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromList(words, field);
-            PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromListV2(words, field, letterPositionMap);
+            PlacedWordInfo placedWordInfo = wordPlacer.placeWordFromListV3(words, field, letterPositionMap);
             if(placedWordInfo != null){
                 iteration++;
                 addToLetterPositionMap(placedWordInfo);
@@ -181,7 +163,7 @@ public class Solver {
 
     private void addToLetterPositionMap(PlacedWordInfo placedWordInfo){
         for (Letter letter : placedWordInfo.letters()) {
-            letterPositionMap.computeIfAbsent(letter.getChar(), character -> new ArrayList<>()).add(new Position(letter.posX, letter.posY));
+            letterPositionMap.computeIfAbsent(letter.getChar(), character -> new ArrayList<>(100)).add(new Position(letter.posX, letter.posY));
         }
     }
 

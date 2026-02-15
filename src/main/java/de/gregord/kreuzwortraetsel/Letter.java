@@ -1,8 +1,11 @@
 package de.gregord.kreuzwortraetsel;
 
+import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.SplittableRandom;
 
 public class Letter {
     public boolean isFirst;
@@ -20,9 +23,10 @@ public class Letter {
     public int posX;
     public int posY;
     public static Letter NULL = new Letter().addTop(null).addRight(null).addBottom(null).addLeft(null);
-    public Orientation orientation = Orientation.NONE;
+    public Orientation occupiedOrientation = Orientation.NONE;
     public Orientation initialOrientation;
-    private final Random random = new Random();
+    private static final SplittableRandom random = new SplittableRandom();
+//    private static final XoRoShiRo128PlusRandom random = new XoRoShiRo128PlusRandom(); // faster
 
     public Letter() {
         this.isEmpty = true;
@@ -55,7 +59,7 @@ public class Letter {
         if(isEmpty){
             return;
         }
-        this.orientation = Orientation.NONE;
+        this.occupiedOrientation = Orientation.NONE;
         this.word = null;
         this.letter = '\u0000'; // null char
         this.isFirst = false;
@@ -72,9 +76,9 @@ public class Letter {
         if(isEmpty){
             return;
         }
-        if(orientation == Orientation.BOTH){
+        if(occupiedOrientation == Orientation.BOTH){
             // two words are using this letter!
-            orientation = initialOrientation;
+            occupiedOrientation = initialOrientation;
             word2 = null;
             if(secondQuestionBlockOfThisLetter != null){
                 secondQuestionBlockOfThisLetter = null;
@@ -83,7 +87,7 @@ public class Letter {
                 }
             }
         }else{
-            this.orientation = Orientation.NONE;
+            this.occupiedOrientation = Orientation.NONE;
             this.word = null;
             this.letter = '\u0000'; // null char
             this.isFirst = false;
@@ -98,7 +102,7 @@ public class Letter {
     }
 
     public Letter set(boolean isFirst, char letter, String word, Orientation orientation) {
-        this.orientation = orientation;
+        this.occupiedOrientation = orientation;
         this.word = word;
         this.letter = letter;
         this.isFirst = isFirst;
@@ -112,7 +116,7 @@ public class Letter {
             if(isFirst) {
                 setSecondQuestionBlockOfThisLetter();
             }
-            this.orientation = Orientation.BOTH;
+            this.occupiedOrientation = Orientation.BOTH;
             this.word2 = word;
         }
         return this;
@@ -127,8 +131,8 @@ public class Letter {
     }
 
     private Letter setQuestionBlock(){
-        final List<Letter> possibleQuestionBlocks = new ArrayList<>();
-        if(orientation == Orientation.HORIZONTAL){
+        final List<Letter> possibleQuestionBlocks = new ArrayList<>(3);
+        if(occupiedOrientation == Orientation.HORIZONTAL){
             if(topLetter != NULL && topLetter.isEmpty){
                 possibleQuestionBlocks.add(topLetter);
             }
@@ -160,11 +164,11 @@ public class Letter {
 
 
     public boolean isHorizontal(){
-        return orientation == Orientation.HORIZONTAL || orientation == Orientation.BOTH;
+        return occupiedOrientation == Orientation.HORIZONTAL || occupiedOrientation == Orientation.BOTH;
     }
 
     public boolean isVertical(){
-        return orientation == Orientation.VERTICAL || orientation == Orientation.BOTH;
+        return occupiedOrientation == Orientation.VERTICAL || occupiedOrientation == Orientation.BOTH;
     }
 
     public void setEmpty() {
@@ -179,15 +183,18 @@ public class Letter {
         return !this.isEmpty;
     }
 
+    static final char NULL_BLOCK = '▨';
+    static final char EMPTY_BLOCK = '▢';
+    static final char QUESTION_BLOCK = '�';
     public char getChar() {
         if (this == NULL) {
-            return '▨';
+            return NULL_BLOCK;
         }
         if (isEmpty) {
-            return '▢';
+            return EMPTY_BLOCK;
         }
         if (isQuestionBlock){
-            return '�';
+            return QUESTION_BLOCK;
         }
         return letter;
     }

@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -28,7 +30,7 @@ public class Main {
         }
         settings = objectMapper.readValue(new File(path), Settings.class);
         List<String> wordList = settings.getWordList().stream().map(String::toUpperCase).toList();
-        List<String> optionalWordList = settings.getOptionalWordList().stream().map(String::toUpperCase).toList();
+        List<String> optionalWordList = Optional.ofNullable(settings.getOptionalWordList()).stream().flatMap(Collection::stream).map(String::toUpperCase).toList();
         LOG.info("wordcount: " + (wordList.size()+optionalWordList.size()));
 
         Statistics statistics = new Statistics(wordList, optionalWordList, settings);
@@ -84,10 +86,10 @@ public class Main {
 //        }
     }
 
-    public static record BestPuzzleResult(String solvedPuzzle, List<String> missingWords,
+    public record BestPuzzleResult(String solvedPuzzle, List<String> missingWords,
                                           List<String> missingOptionalWords, int iterations) {}
 
-    public static record PuzzleResult(Field solvedPuzzle, List<String> missingWords,
+    public record PuzzleResult(Field solvedPuzzle, List<String> missingWords,
                                           List<String> missingOptionalWords, int iterations) {}
 
     public static class PuzzleResults {
@@ -209,13 +211,11 @@ public class Main {
                 String infoLog = ""+i;
                 Instant temp = PuzzleSolverRunnable.solveCountTimeMeasure;
                 solveCountTimeMeasure = Instant.now();
-                if(i >= 25000) {
-                    Duration between = Duration.between(temp, solveCountTimeMeasure);
-                    measures++;
-                    accumilatedTimeInSeconds += (between.toMillis() / 1000.);
+                Duration between = Duration.between(temp, solveCountTimeMeasure);
+                measures++;
+                accumilatedTimeInSeconds += (between.toMillis() / 1000.);
 //                LOG.info(""+i + " " + between.getSeconds()+"s " + between.toNanosPart()/1000000 + "ms");
-                    infoLog += " " + between.toMillis() / 1000. + "s (Avg: " + accumilatedTimeInSeconds / measures + ")";
-                }
+                infoLog += " " + between.toMillis() / 1000. + "s (Avg: " + accumilatedTimeInSeconds / measures + ")";
                 LOG.info(infoLog);
             }
         }

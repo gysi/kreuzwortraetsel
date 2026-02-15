@@ -46,7 +46,7 @@ public class Field {
     }
 
     public List<Letter> placeWord(String word, int posX, int posY, Orientation orientation) {
-        List<Letter> placedLetters = new ArrayList<>();
+        List<Letter> placedLetters = new ArrayList<>(word.length());
         for (int i = 0; i < word.length(); i++) {
             Letter set = field[posY][posX].set(i == 0, word.charAt(i), word, orientation);
             placedLetters.add(set);

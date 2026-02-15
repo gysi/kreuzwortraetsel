@@ -1,34 +1,38 @@
 package de.gregord.kreuzwortraetsel;
 
-import java.util.*;
-
+import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.*;
 
 public class WordPlacer {
     public static final Logger LOG = LoggerFactory.getLogger(WordPlacer.class);
     private final Map<Integer, List<StartingPoint>> startingPointMap;
-    private final Random random = new Random();
+    SplittableRandom random = new SplittableRandom();
+//    XoRoShiRo128PlusRandom random = new XoRoShiRo128PlusRandom(); // faster
 
-    private static record StartingPoint(int posx, int posy, Orientation orientation) { }
+
+    private record StartingPoint(int posx, int posy, Orientation orientation) {
+    }
 
     public WordPlacer(Field field) {
         startingPointMap = calculateStartingPoints(field);
     }
 
-    private Map<Integer, List<StartingPoint>> calculateStartingPoints(Field f){
+    private Map<Integer, List<StartingPoint>> calculateStartingPoints(Field f) {
         Map<Integer, List<StartingPoint>> startingPointMap = new HashMap<>();
         Letter[][] field = f.getField();
         for (int row = 0; row < field.length; row++) {
             for (int col = 0; col < field[0].length; col++) {
                 // go right
                 Letter startLetter = field[row][col];
-                if(startLetter == Letter.NULL){
+                if (startLetter == Letter.NULL) {
                     continue;
                 }
                 Letter tempLetter = startLetter.rightLetter;
                 int length = 1;
-                while(tempLetter != Letter.NULL){
+                while (tempLetter != Letter.NULL) {
                     tempLetter = tempLetter.rightLetter;
                     length++;
                 }
@@ -39,7 +43,7 @@ public class WordPlacer {
                 // go down
                 tempLetter = startLetter.bottomLetter;
                 length = 1;
-                while(tempLetter != Letter.NULL){
+                while (tempLetter != Letter.NULL) {
                     tempLetter = tempLetter.bottomLetter;
                     length++;
                 }
@@ -56,7 +60,7 @@ public class WordPlacer {
         if (field.isFieldEmpty()) {
             int wordLength = word.length();
             List<StartingPoint> startingPoints = startingPointMap.get(wordLength);
-            if(startingPoints == null){
+            if (startingPoints == null) {
                 throw new RuntimeException("No space found for initial word");
             }
             StartingPoint startingPoint = startingPoints.get(random.nextInt(startingPoints.size()));
@@ -74,7 +78,7 @@ public class WordPlacer {
                     for (int col = 0; col < field.width; col++) {
                         Letter letter = field.getLetter(row, col);
                         if (letter.getChar() == word.charAt(i)) { // Matching char found
-                            if (letter.orientation == Orientation.BOTH) {
+                            if (letter.occupiedOrientation == Orientation.BOTH) {
                                 continue;
                             }
                             if (letter.isVertical()
@@ -99,20 +103,41 @@ public class WordPlacer {
         return null;
     }
 
-    public PlacedWordInfo placeWordFromListV2(List<String> words, Field field, HashMap<Character, List<Position>> letterPositionMap) {
+    private static List<Character> convertStringToCharList(String str) {
+        List<Character> chars = new ArrayList<>();
+        for (char ch : str.toCharArray()) {
+            chars.add(ch);
+        }
+        return chars;
+    }
+
+    public PlacedWordInfo placeWordFromListV3(List<String> words, Field field, HashMap<Character, List<Position>> letterPositionMap) {
+        boolean testVerticalOrHorizontalFirstResult = random.nextBoolean();
         for (String word : words) {
-            for (int i = 0; i < word.length(); i++) {
+            RandomPermuteIterator r = new RandomPermuteIterator(word.length());
+            while (r.hasMoreElements()) {
+                int i = Math.toIntExact(r.nextElement());
                 List<Position> positions = letterPositionMap.get(word.charAt(i));
-                if(positions == null){
+                if (positions == null) {
                     continue;
                 }
+//                RandomPermuteIterator r2 = new RandomPermuteIterator(positions.size());
+//                while (r2.hasMoreElements()) {
+//                    Position position = positions.get(Math.toIntExact(r2.nextElement()));
                 for (Position position : positions) {
                     final int row = position.y();
                     final int col = position.x();
                     Letter letter = field.getLetter(row, col);
                     if (letter.getChar() == word.charAt(i)) { // Matching char found
-                        if (letter.orientation == Orientation.BOTH) {
+                        if (letter.occupiedOrientation == Orientation.BOTH) {
                             continue;
+                        }
+                        if (letter.isHorizontal()
+                                && doesWordFit(letter, word, i, Orientation.VERTICAL)) {
+                            LOG.trace("placeword " + col + " " + (row - i) + " " + Orientation.HORIZONTAL);
+                            List<Letter> letters = field.placeWord(word, col, row - i, Orientation.VERTICAL);
+                            words.remove(word);
+                            return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
                         }
                         if (letter.isVertical()
                                 && doesWordFit(letter, word, i, Orientation.HORIZONTAL)) {
@@ -121,10 +146,69 @@ public class WordPlacer {
                             words.remove(word);
                             return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
                         }
+                        if (testVerticalOrHorizontalFirstResult) {
+                            if (letter.isVertical()
+                                    && doesWordFit(letter, word, i, Orientation.HORIZONTAL)) {
+                                LOG.trace("placeword " + (col - i) + " " + row + " " + Orientation.HORIZONTAL);
+                                List<Letter> letters = field.placeWord(word, col - i, row, Orientation.HORIZONTAL);
+                                words.remove(word);
+                                return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                            }
+                            if (letter.isHorizontal()
+                                    && doesWordFit(letter, word, i, Orientation.VERTICAL)) {
+                                LOG.trace("placeword " + col + " " + (row - i) + " " + Orientation.HORIZONTAL);
+                                List<Letter> letters = field.placeWord(word, col, row - i, Orientation.VERTICAL);
+                                words.remove(word);
+                                return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                            }
+                        } else {
+                            if (letter.isHorizontal()
+                                    && doesWordFit(letter, word, i, Orientation.VERTICAL)) {
+                                LOG.trace("placeword " + col + " " + (row - i) + " " + Orientation.HORIZONTAL);
+                                List<Letter> letters = field.placeWord(word, col, row - i, Orientation.VERTICAL);
+                                words.remove(word);
+                                return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                            }
+                            if (letter.isVertical()
+                                    && doesWordFit(letter, word, i, Orientation.HORIZONTAL)) {
+                                LOG.trace("placeword " + (col - i) + " " + row + " " + Orientation.HORIZONTAL);
+                                List<Letter> letters = field.placeWord(word, col - i, row, Orientation.HORIZONTAL);
+                                words.remove(word);
+                                return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    public PlacedWordInfo placeWordFromListV2(List<String> words, Field field, HashMap<Character, List<Position>> letterPositionMap) {
+        for (String word : words) {
+            for(int i = 0; i < word.length(); i++) {
+                List<Position> positions = letterPositionMap.get(word.charAt(i));
+                if (positions == null) {
+                    continue;
+                }
+                for (Position position : positions) {
+                    final int row = position.y();
+                    final int col = position.x();
+                    Letter letter = field.getLetter(row, col);
+                    if (letter.getChar() == word.charAt(i)) { // Matching char found
+                        if (letter.occupiedOrientation == Orientation.BOTH) {
+                            continue;
+                        }
                         if (letter.isHorizontal()
                                 && doesWordFit(letter, word, i, Orientation.VERTICAL)) {
                             LOG.trace("placeword " + col + " " + (row - i) + " " + Orientation.HORIZONTAL);
                             List<Letter> letters = field.placeWord(word, col, row - i, Orientation.VERTICAL);
+                            words.remove(word);
+                            return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
+                        }
+                        if (letter.isVertical()
+                                && doesWordFit(letter, word, i, Orientation.HORIZONTAL)) {
+                            LOG.trace("placeword " + (col - i) + " " + row + " " + Orientation.HORIZONTAL);
+                            List<Letter> letters = field.placeWord(word, col - i, row, Orientation.HORIZONTAL);
                             words.remove(word);
                             return new PlacedWordInfo(word, col, row, letter.getChar(), letter.word, letters);
                         }
@@ -146,23 +230,23 @@ public class WordPlacer {
                 while (tempPos > 0) {
                     tempPos--;
                     tempLetter = tempLetter.leftLetter;
-                    if(!isHorizontalConditionMet(word.charAt(tempPos), tempLetter)){
+                    if (!isHorizontalConditionMet(word.charAt(tempPos), tempLetter)) {
                         return false;
                     }
                 }
-                if(!hasPlaceForQuestionBlock(tempLetter, Orientation.HORIZONTAL)){
+                if (!hasPlaceForQuestionBlock(tempLetter, Orientation.HORIZONTAL)) {
                     return false;
                 }
                 // we need to check the left side when loop is finished
                 if (tempLetter.leftLetter.isNotEmpty()) {
                     return false;
                 }
-            }else{
-                if(!hasPlaceForQuestionBlock(letter, Orientation.HORIZONTAL)){
+            } else {
+                if (!hasPlaceForQuestionBlock(letter, Orientation.HORIZONTAL)) {
                     return false;
                 }
                 // check if left side is an entry, then its not valid
-                if(letter.leftLetter.isNotEmpty()){
+                if (letter.leftLetter.isNotEmpty()) {
                     return false;
                 }
             }
@@ -173,19 +257,15 @@ public class WordPlacer {
                 while (tempPos < word.length() - 1) {
                     tempPos++;
                     tempLetter = tempLetter.rightLetter;
-                    if(!isHorizontalConditionMet(word.charAt(tempPos), tempLetter)){
+                    if (!isHorizontalConditionMet(word.charAt(tempPos), tempLetter)) {
                         return false;
                     }
                 }
                 // we need to check the right side when loop is finished
-                if (tempLetter.rightLetter.isNotEmpty()) {
-                    return false;
-                }
+                return !tempLetter.rightLetter.isNotEmpty();
             } else {
                 // check if right side is an entry, then its not valid
-                if(letter.rightLetter.isNotEmpty()){
-                    return false;
-                }
+                return !letter.rightLetter.isNotEmpty();
             }
         } else { // VERTICAL ORIENTATION
             // look top side
@@ -197,11 +277,11 @@ public class WordPlacer {
                 while (tempPos > 0) {
                     tempPos--;
                     tempLetter = tempLetter.topLetter;
-                    if(!isVerticalConditionMet(word.charAt(tempPos), tempLetter)){
+                    if (!isVerticalConditionMet(word.charAt(tempPos), tempLetter)) {
                         return false;
                     }
                 }
-                if(!hasPlaceForQuestionBlock(tempLetter, Orientation.VERTICAL)){
+                if (!hasPlaceForQuestionBlock(tempLetter, Orientation.VERTICAL)) {
                     return false;
                 }
                 // we need to check the right side when loop is finished
@@ -209,11 +289,11 @@ public class WordPlacer {
                     return false;
                 }
             } else {
-                if(!hasPlaceForQuestionBlock(letter, Orientation.VERTICAL)){
+                if (!hasPlaceForQuestionBlock(letter, Orientation.VERTICAL)) {
                     return false;
                 }
                 // check if top side is an entry, then its not valid
-                if(letter.topLetter.isNotEmpty()){
+                if (letter.topLetter.isNotEmpty()) {
                     return false;
                 }
             }
@@ -224,78 +304,60 @@ public class WordPlacer {
                 while (tempPos < word.length() - 1) {
                     tempPos++;
                     tempLetter = tempLetter.bottomLetter;
-                    if(!isVerticalConditionMet(word.charAt(tempPos), tempLetter)){
+                    if (!isVerticalConditionMet(word.charAt(tempPos), tempLetter)) {
                         return false;
                     }
                 }
                 // we need to check the right side when loop is finished
-                if (tempLetter.bottomLetter.isNotEmpty()) {
-                    return false;
-                }
+                return !tempLetter.bottomLetter.isNotEmpty();
             } else {
                 // check if top side is an entry, then its not valid
-                if(letter.bottomLetter.isNotEmpty()){
-                    return false;
-                }
+                return !letter.bottomLetter.isNotEmpty();
             }
         }
-        return true;
     }
 
-    private boolean hasPlaceForQuestionBlock(final Letter target, final Orientation orientation){
-        if(orientation == Orientation.HORIZONTAL){
-            if(target.topLetter != Letter.NULL && target.topLetter.isEmpty){
+    private boolean hasPlaceForQuestionBlock(final Letter target, final Orientation orientation) {
+        if (orientation == Orientation.HORIZONTAL) {
+            if (target.topLetter != Letter.NULL && target.topLetter.isEmpty) {
                 return true;
             }
-            if(target.bottomLetter != Letter.NULL && target.bottomLetter.isEmpty){
+            if (target.bottomLetter != Letter.NULL && target.bottomLetter.isEmpty) {
                 return true;
             }
-            if(target.leftLetter != Letter.NULL && target.leftLetter.isEmpty){
+            return target.leftLetter != Letter.NULL && target.leftLetter.isEmpty;
+        } else { // Vertical
+            if (target.topLetter != Letter.NULL && target.topLetter.isEmpty) {
                 return true;
             }
-        }else { // Vertical
-            if(target.topLetter != Letter.NULL && target.topLetter.isEmpty){
+            if (target.rightLetter != Letter.NULL && target.rightLetter.isEmpty) {
                 return true;
             }
-            if(target.rightLetter != Letter.NULL && target.rightLetter.isEmpty){
-                return true;
-            }
-            if(target.leftLetter != Letter.NULL && target.leftLetter.isEmpty){
-                return true;
-            }
+            return target.leftLetter != Letter.NULL && target.leftLetter.isEmpty;
         }
-        return false;
     }
 
-    private boolean isHorizontalConditionMet(char chartToCheck, Letter target){
-        if (target == Letter.NULL // we have reached the end of the field
+    private boolean isHorizontalConditionMet(char chartToCheck, Letter target) {
+        return target != Letter.NULL // we have reached the end of the field
                 // target letter doesn't match char or has a not valid orientation
-                || (target.isNotEmpty()
-                    && (chartToCheck != target.getChar()
-                        || !target.isHorizontal()))
+                && (!target.isNotEmpty()
+                || (chartToCheck == target.getChar()
+                && target.isHorizontal()))
                 // when target is empty on the bottom or top can't be a letter in the vertical direction
-                || (target.isEmpty
-                    && ((target.topLetter.isNotEmpty() && target.topLetter.isVertical())
-                        || (target.bottomLetter.isNotEmpty() && target.bottomLetter.isVertical())
-        ))) {
-            return false;
-        }
-        return true;
+                && (!target.isEmpty
+                || ((!target.topLetter.isNotEmpty() || !target.topLetter.isVertical())
+                && (!target.bottomLetter.isNotEmpty() || !target.bottomLetter.isVertical())));
     }
 
-    private boolean isVerticalConditionMet(char chartToCheck, Letter target){
-        if (target == Letter.NULL // we have reached the end of the field
+    private boolean isVerticalConditionMet(char chartToCheck, Letter target) {
+        return target != Letter.NULL // we have reached the end of the field
                 // target letter doesn't match char or has a not valid orientation
-                || (target.isNotEmpty()
-                    && (chartToCheck != target.getChar()
-                        || !target.isVertical()))
+                && (!target.isNotEmpty()
+                || (chartToCheck == target.getChar()
+                && target.isVertical()))
                 // when target is empty on the left or right can't be a letter in the horizontal
-                || (target.isEmpty
-                    && ((target.rightLetter.isNotEmpty() && target.rightLetter.isHorizontal())
-                        || (target.leftLetter.isNotEmpty() && target.leftLetter.isHorizontal())
-        ))) {
-            return false;
-        }
-        return true;
+                && (!target.isEmpty
+                || ((!target.rightLetter.isNotEmpty() || !target.rightLetter.isHorizontal())
+                && (!target.leftLetter.isNotEmpty() || !target.leftLetter.isHorizontal())));
     }
 }

@@ -1,5 +1,5 @@
-iterations: 300000
-threadCount: 4
+iterations: 100_000_000
+threadCount: 16
 fieldWidth: 21
 fieldHeight: 27
 blockedArea:
@@ -9,69 +9,57 @@ blockedArea:
   height: 10
 # 487 possible empty fields
 optionalWordList:
-  - Gezeiten
-  - Alge
-  - Krebs
-  - Robbe
-  - Insel
-  - Kur
-  - Smutje
-  - Ronde-Plate
-  - Heidschnucken
-  - Kutter
-  - Tee
-  - FKK
-  - LER
-  - Moin
-  - Jod
-  - Flut
-  - Ebbe
-  - DLRG
-  - UV
-  - Hai
-  - Ems
-  - Moi
-  - Leuchtturm
 wordList:
-  - Wellenbrecher
-  - Promenade
-  - Strand
-  - Sand
-  - Hooge-Hörn
-  - Meer
-  - Sternklipp
-  - Bake
-  - Düne
-  - Sanddorn
-  - Cafe-Heide
-  - Sturmeck
-  - Seeblick
-  - Heimliche-Liebe
-  - Walfänger
-  - Scholle
-  - Watt
-  - Hafen
-  - Fähre
-  - Emden
-  - Camping
-  - Upholmhof
-  - Kluntjes
-  - Villa-Elysee
-  - Knurrhahn
-  - Kleinbahn
-  - Sandburg
-  - Ostland
-  - Olde-Düne
-  - Insulaner
-  - Eis
-  - Strandkorb
-  - Fahrrad
-  - Muscheln
-  - Drachen
-  - Knobelkiste
-  - Möwe
-  - Dünenbudje
-  - Wasserturm
-  - Ententeich
-  - Qualle
-  - Greune-Stee
+  - MAR
+  - SALZ
+  - NORDSEE
+  - WELLENGANG
+  - SEETANG
+  - RUHE
+  - CHOR
+  - MUNDHARMONIKA
+  - VILLA-ELYSEE
+  - ROBBE
+  - SMUTJE
+  - RONDE-PLATE
+  - HEIDSCHNUCKEN
+  - KUTTER
+  - FLUT
+  - EBBE
+  - DLRG
+  - HAI
+  - EMS
+  - MOOI
+  - AKKERMANN
+  - WETTER
+  - WINDPARK
+  - WATTENMEER
+  - WAL
+  - HOCHSEEKLIMA
+  - GEZEITENLAND
+  - LACHMÖWE
+  - RIFF
+  - FERIEN
+  - GELD
+  - FESTLAND
+  - FAMILIE
+  - OPFER
+  - SONNENCREME
+  - SONNENBRAND
+  - RAMONA
+  - SUDOKU
+  - PFERD
+  - AIOLI
+  - CHRIS
+  - VERLEIH
+  - SCHNITZEL
+  - YACHT
+  - ERNEST
+  - KAFFEE
+  - EBIKE
+  - FOTO
+  - SURFEN
+  - ANGELN
+  - AQUARIUM
+  - MORITZ
+  - AHOI
